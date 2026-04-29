@@ -2,11 +2,15 @@
 
 An AI-powered restaurant ordering chatbot built with Python, Flask, and Claude API.
 
+## Demo
+▶️ [Watch the Food AI Demo](https://drive.google.com/file/d/1ztoSyY8g0BwWSHaDI0R6pNJqER5d3do7/view?usp=drive_link)
+
 ## Features
 - Real-time streaming responses
 - Live order cart with automatic updates
 - Voice input via Web Speech API
 - Dietary filters (Vegetarian, Vegan, Gluten-Free)
+- Order type selection (Dine In, Pickup, Delivery)
 - Order status tracker
 - Loyalty points system
 - Printable receipt
