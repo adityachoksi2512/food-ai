@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Food AI – {{ restaurant_name }}</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --orange: #f97316; --orange-l: #fb923c;
+      --orange-bg: rgba(249,115,22,0.12); --orange-bd: rgba(249,115,22,0.25);
+      --border: rgba(255,255,255,0.08); --text: #e2e8f0; --muted: #94a3b8; --green: #4ade80;
+    }
+
+    body {
+      font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;
+      background:linear-gradient(135deg,#0f0f1a 0%,#151525 50%,#0f1f3d 100%);
+      height:100vh; display:flex; flex-direction:column; overflow:hidden;
+    }
+
+    /* ══════════════════════════════════════
+       FEATURE 1 — WELCOME SCREEN
+    ══════════════════════════════════════ */
+    #welcome-overlay {
+      position:fixed; inset:0; z-index:1000;
+      background:linear-gradient(135deg,#0a0a14 0%,#10102a 60%,#0a1828 100%);
+      display:flex; align-items:center; justify-content:center;
+      transition:opacity 0.5s ease;
+    }
+    .welcome-card {
+      text-align:center; padding:40px 36px; max-width:440px; width:90%;
+      background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1);
+      border-radius:24px;
+    }
+    .welcome-logo { font-size:52px; margin-bottom:12px; }
+    .welcome-restaurant { font-size:13px; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:var(--orange-l); margin-bottom:8px; }
+    .welcome-title { font-size:28px; font-weight:700; color:#fff; margin-bottom:8px; }
+    .welcome-sub { font-size:14px; color:var(--muted); margin-bottom:24px; }
+
+    /* Order type toggle */
+    .order-type-group { display:flex; gap:8px; margin-bottom:4px; }
+    .order-type-btn {
+      flex:1; padding:11px 8px; border-radius:12px; border:1px solid rgba(255,255,255,0.12);
+      background:rgba(255,255,255,0.05); color:var(--muted); font-size:13px;
+      font-weight:600; cursor:pointer; transition:all 0.2s; font-family:inherit;
+      display:flex; flex-direction:column; align-items:center; gap:4px;
+    }
+    .order-type-btn .ot-icon { font-size:20px; }
+    .order-type-btn:hover { background:rgba(255,255,255,0.1); color:#fff; }
+    .order-type-btn.active {
+      background:var(--orange-bg); border-color:var(--orange-bd);
+      color:var(--orange-l);
+    }
+
+    .welcome-form { display:flex; flex-direction:column; gap:12px; margin-top:16px; }
+    .welcome-input {
+      background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.15);
+      border-radius:12px; padding:13px 18px; color:#fff; font-size:15px;
+      outline:none; transition:border-color 0.2s; font-family:inherit; width:100%;
+    }
+    .welcome-input::placeholder { color:#475569; }
+    .welcome-input:focus { border-color:rgba(249,115,22,0.6); }
+    .welcome-btn {
+      background:linear-gradient(135deg,#f97316,#fb923c); border:none; border-radius:12px;
+      padding:14px; color:#fff; font-size:15px; font-weight:600; cursor:pointer;
+      margin-top:4px; transition:filter 0.2s, transform 0.15s;
+    }
+    .welcome-btn:hover { filter:brightness(1.1); transform:translateY(-1px); }
+    .welcome-error { color:#f87171; font-size:13px; display:none; margin-top:4px; }
+
+    /* ══════════════════════════════════════
+       FEATURE 2 — DIETARY PREFERENCES MODAL
+    ══════════════════════════════════════ */
+    #prefs-overlay {
+      position:fixed; inset:0; z-index:900; background:rgba(0,0,0,0.7);
+      display:none; align-items:center; justify-content:center;
+    }
+    .prefs-card {
+      background:#1a1a2e; border:1px solid rgba(255,255,255,0.12);
+      border-radius:20px; padding:28px; max-width:360px; width:90%;
+    }
+    .prefs-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+    .prefs-header span { font-size:16px; font-weight:700; color:#fff; }
+    .prefs-close { background:none; border:none; color:var(--muted); font-size:18px; cursor:pointer; line-height:1; }
+    .prefs-close:hover { color:#fff; }
+    .prefs-sub { font-size:13px; color:var(--muted); margin-bottom:20px; line-height:1.5; }
+    .prefs-options { display:flex; flex-direction:column; gap:10px; margin-bottom:24px; }
+    .pref-option {
+      display:flex; align-items:center; gap:12px; padding:12px 16px;
+      background:rgba(255,255,255,0.04); border:1px solid var(--border);
+      border-radius:10px; cursor:pointer; transition:all 0.2s;
+    }
+    .pref-option:hover { background:rgba(255,255,255,0.08); }
+    .pref-option input { width:16px; height:16px; accent-color:var(--orange); cursor:pointer; }
+    .pref-option-text { flex:1; }
+    .pref-name { font-size:14px; color:var(--text); font-weight:500; }
+    .pref-desc { font-size:12px; color:var(--muted); }
+    .prefs-save {
+      width:100%; padding:12px; border-radius:12px; border:none;
+      background:linear-gradient(135deg,#f97316,#fb923c);
+      color:#fff; font-size:14px; font-weight:600; cursor:pointer;
+    }
+    .prefs-save:hover { filter:brightness(1.1); }
+
+    /* ══════════════════════════════════════
+       FEATURE 5 — RECEIPT MODAL
+    ══════════════════════════════════════ */
+    #receipt-overlay {
+      position:fixed; inset:0; z-index:900; background:rgba(0,0,0,0.8);
+      display:none; align-items:center; justify-content:center; padding:20px;
+    }
+    .receipt-card {
+      background:#fff; border-radius:16px; padding:32px 28px;
+      max-width:340px; width:100%; max-height:90vh; overflow-y:auto;
+      text-align:center; font-family:'Courier New',monospace;
+    }
+    .receipt-logo { font-size:32px; }
+    .receipt-restaurant { font-size:18px; font-weight:700; color:#111; margin:6px 0 2px; font-family:'Segoe UI',sans-serif; }
+    .receipt-sub { font-size:11px; color:#888; margin-bottom:16px; }
+    .receipt-divider { border:none; border-top:1px dashed #ccc; margin:14px 0; }
+    .receipt-meta-row { display:flex; justify-content:space-between; font-size:12px; color:#555; margin:4px 0; }
+    .receipt-items { text-align:left; margin:8px 0; }
+    .receipt-row { display:flex; justify-content:space-between; font-size:13px; color:#333; margin:6px 0; }
+    .receipt-total-row { font-size:16px; font-weight:700; color:#111; margin-top:8px; }
+    .receipt-loyalty { font-size:13px; color:#f97316; font-weight:600; margin:8px 0; font-family:'Segoe UI',sans-serif; }
+    .receipt-thankyou { font-size:12px; color:#888; margin:12px 0 20px; line-height:1.6; font-family:'Segoe UI',sans-serif; }
+    .receipt-btns { display:flex; gap:10px; }
+    .receipt-print-btn {
+      flex:1; padding:10px; border-radius:10px; border:none;
+      background:#111; color:#fff; font-size:13px; cursor:pointer; font-family:'Segoe UI',sans-serif;
+    }
+    .receipt-close-btn {
+      flex:1; padding:10px; border-radius:10px;
+      border:1px solid #ddd; background:#fff;
+      color:#555; font-size:13px; cursor:pointer; font-family:'Segoe UI',sans-serif;
+    }
+
+    /* ══════════════════════════════════════
+       HEADER
+    ══════════════════════════════════════ */
+    header {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:10px 20px; border-bottom:1px solid var(--border);
+      background:rgba(0,0,0,0.25); flex-shrink:0; gap:12px;
+    }
+    .logo { display:flex; align-items:center; gap:10px; min-width:0; }
+    .logo-icon { width:36px; height:36px; background:linear-gradient(135deg,#f97316,#fbbf24); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; }
+    .logo-name { font-size:18px; font-weight:700; color:#fff; }
+    .logo-sub  { font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:200px; }
+
+    /* FEATURE 4 — LOYALTY POINTS */
+    .loyalty-badge {
+      display:flex; align-items:center; gap:5px;
+      background:rgba(251,191,36,0.12); border:1px solid rgba(251,191,36,0.25);
+      border-radius:999px; padding:5px 14px; flex-shrink:0;
+    }
+    .loyalty-star { font-size:14px; }
+    .loyalty-count { font-size:15px; font-weight:700; color:#fbbf24; min-width:28px; text-align:center; }
+    .loyalty-label { font-size:11px; color:#d97706; font-weight:600; }
+    .loyalty-tier { font-size:10px; color:#92400e; background:rgba(251,191,36,0.2); border-radius:4px; padding:1px 5px; }
+
+    .header-right { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+    .status-group { display:flex; align-items:center; gap:5px; color:var(--green); font-size:12px; }
+    .dot { width:6px; height:6px; background:var(--green); border-radius:50%; animation:pulse 2s infinite; }
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+    .settings-btn {
+      background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.12);
+      border-radius:8px; padding:6px 10px; color:var(--muted); font-size:16px;
+      cursor:pointer; transition:all 0.2s; line-height:1;
+    }
+    .settings-btn:hover { background:rgba(255,255,255,0.13); color:#fff; }
+
+    /* ══════════════════════════════════════
+       MAIN LAYOUT
+    ══════════════════════════════════════ */
+    .main { display:flex; flex:1; overflow:hidden; }
+
+    /* CHAT PANEL */
+    .chat-panel { flex:1; display:flex; flex-direction:column; border-right:1px solid var(--border); min-width:0; }
+
+    #messages { flex:1; overflow-y:auto; padding:20px; display:flex; flex-direction:column; gap:14px; scroll-behavior:smooth; }
+    #messages::-webkit-scrollbar{width:4px}
+    #messages::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:4px}
+
+    .msg { display:flex; gap:10px; animation:fadeIn 0.2s ease; }
+    @keyframes fadeIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+    .msg.user { flex-direction:row-reverse; }
+    .msg-avatar { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; margin-top:2px; }
+    .msg.bot  .msg-avatar { background:linear-gradient(135deg,#f97316,#fbbf24); }
+    .msg.user .msg-avatar { background:linear-gradient(135deg,#6366f1,#8b5cf6); }
+
+    .bubble { max-width:78%; padding:12px 16px; border-radius:16px; font-size:14px; line-height:1.65; white-space:pre-wrap; word-break:break-word; }
+    .msg.bot  .bubble { background:rgba(255,255,255,0.07); color:var(--text); border-bottom-left-radius:4px; }
+    .msg.user .bubble { background:linear-gradient(135deg,#f97316,#fb923c); color:#fff; border-bottom-right-radius:4px; }
+    .bubble.streaming::after { content:'▋'; animation:blink 0.7s step-end infinite; color:var(--orange-l); font-size:12px; }
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+    /* Markdown in bot bubbles */
+    .msg.bot .bubble h1,.msg.bot .bubble h2,.msg.bot .bubble h3 { color:var(--orange-l); font-size:14px; font-weight:600; margin:14px 0 8px; }
+    .msg.bot .bubble h3:first-child { margin-top:4px; }
+    .msg.bot .bubble hr { border:none; border-top:1px solid rgba(255,255,255,0.1); margin:10px 0; }
+    .msg.bot .bubble table { border-collapse:collapse; width:100%; margin:6px 0 12px; font-size:13px; }
+    .msg.bot .bubble th { background:rgba(249,115,22,0.22); color:#fff; padding:8px 12px; text-align:left; font-size:12px; font-weight:600; }
+    .msg.bot .bubble td { padding:7px 12px; color:var(--text); border-bottom:1px solid rgba(255,255,255,0.05); }
+    .msg.bot .bubble tr:last-child td { border-bottom:none; }
+    .msg.bot .bubble tr:nth-child(even) td { background:rgba(255,255,255,0.03); }
+    .msg.bot .bubble em { color:#4ade80; font-style:italic; font-size:12px; }
+    .msg.bot .bubble strong { color:#fff; font-weight:600; }
+    .msg.bot .bubble p { margin:4px 0; }
+    .msg.bot .bubble ul,.msg.bot .bubble ol { padding-left:18px; margin:4px 0; }
+    .msg.bot .bubble li { margin:3px 0; }
+
+    /* Typing dots */
+    .typing-dots span { display:inline-block; width:7px; height:7px; background:var(--muted); border-radius:50%; margin:0 2px; animation:bounce 1.2s infinite; }
+    .typing-dots span:nth-child(2){animation-delay:.2s}.typing-dots span:nth-child(3){animation-delay:.4s}
+    @keyframes bounce{0%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}}
+
+    /* CHIPS */
+    .chips { display:flex; flex-wrap:wrap; gap:8px; padding:10px 20px; border-top:1px solid var(--border); }
+    .chip { background:var(--orange-bg); border:1px solid var(--orange-bd); color:var(--orange-l); border-radius:999px; padding:5px 13px; font-size:12px; cursor:pointer; transition:all 0.2s; white-space:nowrap; }
+    .chip:hover { background:rgba(249,115,22,0.25); color:#fff; }
+    .chip.surprise { background:rgba(168,85,247,0.15); border-color:rgba(168,85,247,0.3); color:#c084fc; }
+    .chip.surprise:hover { background:rgba(168,85,247,0.3); color:#fff; }
+
+    /* INPUT */
+    .input-area { padding:14px 16px; border-top:1px solid var(--border); display:flex; gap:8px; align-items:flex-end; background:rgba(0,0,0,0.1); }
+    #userInput { flex:1; background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.12); border-radius:12px; padding:11px 16px; color:#fff; font-size:14px; resize:none; outline:none; min-height:44px; max-height:120px; line-height:1.5; font-family:inherit; transition:border-color 0.2s; }
+    #userInput::placeholder { color:#475569; }
+    #userInput:focus { border-color:rgba(249,115,22,0.5); }
+    .icon-btn { width:44px; height:44px; border:1px solid rgba(255,255,255,0.12); border-radius:12px; background:rgba(255,255,255,0.07); color:var(--muted); font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s; flex-shrink:0; }
+    .icon-btn:hover { background:rgba(255,255,255,0.13); color:#fff; }
+    .icon-btn.recording { background:rgba(239,68,68,0.2); border-color:rgba(239,68,68,0.5); color:#f87171; animation:mic-pulse 1s ease-in-out infinite; }
+    @keyframes mic-pulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0.3)}50%{box-shadow:0 0 0 7px rgba(239,68,68,0)}}
+    #sendBtn { width:44px; height:44px; background:linear-gradient(135deg,#f97316,#fb923c); border:none; border-radius:12px; color:#fff; font-size:16px; cursor:pointer; flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:transform 0.15s,opacity 0.15s; }
+    #sendBtn:hover:not(:disabled){transform:scale(1.06)}
+    #sendBtn:disabled{opacity:0.4;cursor:not-allowed}
+
+    /* ══════════════════════════════════════
+       ORDER / CART PANEL
+    ══════════════════════════════════════ */
+    .order-panel { width:300px; flex-shrink:0; display:flex; flex-direction:column; background:rgba(0,0,0,0.2); }
+    .order-header { padding:14px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px; }
+    .order-title { color:#fff; font-weight:600; font-size:15px; display:flex; align-items:center; gap:8px; }
+    .order-count { background:var(--orange); color:#fff; border-radius:999px; font-size:11px; font-weight:700; padding:2px 8px; min-width:20px; text-align:center; transition:all 0.3s; }
+    .prefs-active-badge { font-size:11px; background:rgba(74,222,128,0.15); border:1px solid rgba(74,222,128,0.3); color:#4ade80; border-radius:6px; padding:3px 8px; }
+
+    /* Cart */
+    #cart-section { display:flex; flex-direction:column; flex:1; overflow:hidden; }
+    #cart-items { flex:1; overflow-y:auto; padding:16px 20px; display:flex; flex-direction:column; gap:10px; }
+    #cart-items::-webkit-scrollbar{width:3px}
+    #cart-items::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:3px}
+    .cart-empty { text-align:center; color:var(--muted); font-size:13px; padding:40px 20px; display:flex; flex-direction:column; align-items:center; gap:12px; }
+    .cart-empty-icon { font-size:36px; opacity:0.4; }
+    .cart-item { display:flex; align-items:flex-start; justify-content:space-between; background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:10px; padding:10px 12px; gap:8px; animation:slideIn 0.25s ease; }
+    @keyframes slideIn{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:translateX(0)}}
+    .cart-item-name { color:var(--text); font-size:13px; font-weight:500; flex:1; line-height:1.4; }
+    .cart-item-qty { background:var(--orange-bg); border:1px solid var(--orange-bd); color:var(--orange-l); border-radius:4px; font-size:11px; font-weight:600; padding:2px 6px; flex-shrink:0; }
+    .cart-item-price { color:var(--orange-l); font-size:13px; font-weight:600; flex-shrink:0; }
+    .cart-total { padding:14px 20px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+    .cart-total-label { color:var(--muted); font-size:14px; }
+    .cart-total-amount { color:#fff; font-size:22px; font-weight:700; }
+    .cart-actions { padding:0 16px 16px; display:flex; flex-direction:column; gap:8px; }
+    .confirm-btn { width:100%; padding:12px; border-radius:12px; border:none; background:linear-gradient(135deg,#f97316,#fb923c); color:#fff; font-size:14px; font-weight:600; cursor:pointer; transition:all 0.2s; }
+    .confirm-btn:hover:not(:disabled){filter:brightness(1.1);transform:translateY(-1px)}
+    .confirm-btn:disabled{opacity:0.4;cursor:not-allowed;transform:none}
+    .neworder-btn { width:100%; padding:9px; border-radius:12px; border:1px solid rgba(255,255,255,0.1); background:transparent; color:var(--muted); font-size:13px; cursor:pointer; transition:all 0.2s; }
+    .neworder-btn:hover{background:rgba(255,255,255,0.06);color:#fff}
+
+    /* ══════════════════════════════════════
+       FEATURE 3 — ORDER STATUS TRACKER
+    ══════════════════════════════════════ */
+    #tracker-section { display:none; flex-direction:column; flex:1; padding:20px; gap:0; }
+    .tracker-title { font-size:13px; color:var(--muted); margin-bottom:4px; }
+    .tracker-order-num { font-size:20px; font-weight:700; color:#fff; margin-bottom:24px; }
+    .tracker-steps { display:flex; flex-direction:column; flex:1; }
+    .tracker-step { display:flex; align-items:flex-start; gap:14px; }
+    .tracker-connector { width:2px; height:28px; background:rgba(255,255,255,0.08); margin-left:17px; margin:4px 0 4px 17px; transition:background 0.5s; }
+    .tracker-connector.done { background:var(--green); }
+
+    .step-icon-wrap {
+      width:36px; height:36px; border-radius:50%;
+      display:flex; align-items:center; justify-content:center; font-size:16px;
+      background:rgba(255,255,255,0.06); border:2px solid rgba(255,255,255,0.1);
+      flex-shrink:0; transition:all 0.5s; filter:grayscale(1); opacity:0.4;
+    }
+    .step-icon-wrap.active {
+      background:rgba(74,222,128,0.15); border-color:var(--green);
+      filter:grayscale(0); opacity:1;
+      box-shadow:0 0 12px rgba(74,222,128,0.3);
+      animation:step-pop 0.4s ease;
+    }
+    @keyframes step-pop{0%{transform:scale(0.8)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+    .step-info { padding-top:6px; }
+    .step-name { font-size:13px; font-weight:600; color:var(--text); }
+    .step-desc { font-size:12px; color:var(--muted); margin-top:2px; }
+
+    .tracker-footer { margin-top:20px; display:flex; flex-direction:column; gap:8px; }
+    .receipt-btn { width:100%; padding:11px; border-radius:12px; border:none; background:rgba(249,115,22,0.15); border:1px solid var(--orange-bd); color:var(--orange-l); font-size:13px; font-weight:600; cursor:pointer; transition:all 0.2s; display:none; }
+    .receipt-btn:hover { background:rgba(249,115,22,0.25); color:#fff; }
+
+    /* ══════════════════════════════════════
+       MENU CARD
+    ══════════════════════════════════════ */
+    .menu-card { white-space:normal; }
+    .menu-card * { white-space:normal; }
+    .menu-item { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:7px 0; border-bottom:1px solid rgba(255,255,255,0.05); width:100%; }
+    .menu-item-left { flex:1; min-width:0; }
+    .menu-item-price { flex-shrink:0; }
+    .menu-card-title { font-size:15px; font-weight:700; color:#fff; text-align:center; padding-bottom:12px; border-bottom:1px solid rgba(255,255,255,0.1); margin-bottom:14px; }
+    .menu-section { margin-bottom:16px; }
+    .menu-section-title { font-size:12px; font-weight:700; color:var(--orange-l); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:8px; }
+    .menu-item:last-child { border-bottom:none; }
+    .menu-item-left { flex:1; min-width:0; }
+    .menu-item-name-row { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+    .menu-item-name { font-size:13px; font-weight:600; color:var(--text); }
+    .veg-badge { font-size:10px; font-weight:600; background:rgba(74,222,128,0.15); border:1px solid rgba(74,222,128,0.3); color:#4ade80; border-radius:4px; padding:1px 5px; }
+    .menu-item-desc { font-size:12px; color:var(--muted); margin-top:2px; line-height:1.4; }
+    .menu-item-price { font-size:13px; font-weight:700; color:var(--orange-l); flex-shrink:0; }
+    .menu-order-hint { text-align:center; font-size:12px; color:var(--muted); margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.08); }
+
+    /* ══════════════════════════════════════
+       CONFETTI + TOAST
+    ══════════════════════════════════════ */
+    #confetti-container { position:fixed; inset:0; pointer-events:none; z-index:9999; overflow:hidden; }
+    .confetti-piece { position:absolute; top:-12px; animation:confetti-fall linear forwards; }
+    @keyframes confetti-fall{0%{transform:translateY(0) rotate(0deg);opacity:1}100%{transform:translateY(110vh) rotate(720deg);opacity:0}}
+
+    #toast { position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(100px); background:#1a1a2e; border:1px solid rgba(255,255,255,0.15); color:#fff; padding:13px 24px; border-radius:14px; font-size:14px; font-weight:500; transition:transform 0.45s cubic-bezier(0.34,1.56,0.64,1); z-index:9998; box-shadow:0 8px 32px rgba(0,0,0,0.5); white-space:nowrap; }
+    #toast.show { transform:translateX(-50%) translateY(0); }
+    #toast.success { background:linear-gradient(135deg,#15803d,#166534); }
+    #toast.info    { background:linear-gradient(135deg,#1e40af,#1d4ed8); }
+    #toast.reward  { background:linear-gradient(135deg,#92400e,#b45309); }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════
+     FEATURE 1 — WELCOME SCREEN
+══════════════════════════════════════ -->
+<div id="welcome-overlay">
+  <div class="welcome-card">
+    <div class="welcome-logo">🤌</div>
+    <div class="welcome-restaurant">{{ restaurant_name }}</div>
+    <h1 class="welcome-title">Welcome to Food AI</h1>
+    <p class="welcome-sub">Your personal AI dining assistant, powered by Claude</p>
+
+    <!-- Order type selector -->
+    <div class="order-type-group">
+      <button class="order-type-btn active" id="ot-dinein" onclick="setOrderType('dine-in')">
+        <span class="ot-icon">🍽️</span>Dine In
+      </button>
+      <button class="order-type-btn" id="ot-pickup" onclick="setOrderType('pickup')">
+        <span class="ot-icon">🥡</span>Pickup
+      </button>
+      <button class="order-type-btn" id="ot-delivery" onclick="setOrderType('delivery')">
+        <span class="ot-icon">🚗</span>Delivery
+      </button>
+    </div>
+
+    <div class="welcome-form">
+      <input id="guest-name" class="welcome-input" type="text"   placeholder="Your first name" maxlength="30" autocomplete="off"/>
+      <input id="table-num"  class="welcome-input" type="number" placeholder="Table number (1–50)" min="1" max="50" autocomplete="off"/>
+      <input id="delivery-address" class="welcome-input" type="text" placeholder="Delivery address" style="display:none" autocomplete="off"/>
+      <div class="welcome-error" id="welcome-error">Please fill in all required fields.</div>
+      <button class="welcome-btn" onclick="startSession()">Let's Order! →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     FEATURE 2 — DIETARY PREFERENCES MODAL
+══════════════════════════════════════ -->
+<div id="prefs-overlay" onclick="closePrefsBg(event)">
+  <div class="prefs-card">
+    <div class="prefs-header">
+      <span>🥗 Dietary Preferences</span>
+      <button class="prefs-close" onclick="closePrefs()">✕</button>
+    </div>
+    <p class="prefs-sub">Claude will only recommend items that match your selected requirements. Your order will be filtered accordingly.</p>
+    <div class="prefs-options">
+      <label class="pref-option">
+        <input type="checkbox" value="vegetarian">
+        <div class="pref-option-text"><div class="pref-name">🌿 Vegetarian</div><div class="pref-desc">No meat or fish</div></div>
+      </label>
+      <label class="pref-option">
+        <input type="checkbox" value="vegan">
+        <div class="pref-option-text"><div class="pref-name">🌱 Vegan</div><div class="pref-desc">No animal products</div></div>
+      </label>
+      <label class="pref-option">
+        <input type="checkbox" value="gluten-free">
+        <div class="pref-option-text"><div class="pref-name">🌾 Gluten-Free</div><div class="pref-desc">No gluten-containing ingredients</div></div>
+      </label>
+      <label class="pref-option">
+        <input type="checkbox" value="nut allergy">
+        <div class="pref-option-text"><div class="pref-name">🥜 Nut Allergy</div><div class="pref-desc">No nuts or nut-derived products</div></div>
+      </label>
+      <label class="pref-option">
+        <input type="checkbox" value="dairy-free">
+        <div class="pref-option-text"><div class="pref-name">🥛 Dairy-Free</div><div class="pref-desc">No milk, cheese, or dairy</div></div>
+      </label>
+    </div>
+    <button class="prefs-save" onclick="savePrefs()">Save Preferences</button>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     FEATURE 5 — RECEIPT MODAL
+══════════════════════════════════════ -->
+<div id="receipt-overlay" onclick="closeReceiptBg(event)">
+  <div class="receipt-card" id="receipt-content"></div>
+</div>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">🤌</div>
+    <div>
+      <div class="logo-name">Food AI</div>
+      <div class="logo-sub" id="header-sub">{{ restaurant_name }}</div>
+    </div>
+  </div>
+
+  <!-- FEATURE 4 — LOYALTY POINTS -->
+  <div class="loyalty-badge" title="Earn 10 points per dollar spent">
+    <span class="loyalty-star">⭐</span>
+    <span class="loyalty-count" id="loyalty-points">0</span>
+    <span class="loyalty-label">pts</span>
+  </div>
+
+  <div class="header-right">
+    <div class="status-group"><span class="dot"></span> Bella is online</div>
+    <button class="settings-btn" onclick="openPrefs()" title="Set dietary preferences">⚙️</button>
+  </div>
+</header>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- CHAT PANEL -->
+  <div class="chat-panel">
+    <div id="messages"></div>
+    <div class="chips">
+      <span class="chip" onclick="sendQuick('Show me the full menu')">📋 Menu</span>
+      <span class="chip" onclick="sendQuick('Show me all vegetarian options')">🌿 Vegetarian</span>
+      <span class="chip" onclick="sendQuick('Show me all vegan options')">🌱 Vegan</span>
+      <span class="chip" onclick="sendQuick('Show me all gluten-free options')">🌾 Gluten-Free</span>
+      <span class="chip" onclick="sendQuick('What starters do you have?')">🥗 Starters</span>
+      <span class="chip" onclick="sendQuick('What desserts do you have?')">🍰 Desserts</span>
+      <span class="chip" onclick="sendQuick('What drinks are available?')">🥤 Drinks</span>
+      <span class="chip surprise" onclick="sendQuick('Surprise me! Pick a perfect starter, main course, dessert, and drink for me!')">🎲 Surprise Me!</span>
+    </div>
+    <div class="input-area">
+      <textarea id="userInput" placeholder="Type your order… (Enter to send)" rows="1"></textarea>
+      <button class="icon-btn" id="micBtn" onclick="toggleVoice()" title="Speak your order">🎤</button>
+      <button id="sendBtn" onclick="sendMessage()">➤</button>
+    </div>
+  </div>
+
+  <!-- ORDER / CART PANEL -->
+  <div class="order-panel">
+    <div class="order-header">
+      <div class="order-title">🛒 Your Order <span class="order-count" id="itemCount">0</span></div>
+      <div class="prefs-active-badge" id="prefs-badge" style="display:none">🥗 Filtered</div>
+    </div>
+
+    <!-- CART (shown while ordering) -->
+    <div id="cart-section">
+      <div id="cart-items">
+        <div class="cart-empty">
+          <span class="cart-empty-icon">🍽️</span>
+          <span>Chat with Bella to start your order</span>
+        </div>
+      </div>
+      <div class="cart-total">
+        <span class="cart-total-label">Total</span>
+        <span class="cart-total-amount" id="cartTotal">$0.00</span>
+      </div>
+      <div class="cart-actions">
+        <button class="confirm-btn" id="confirmBtn" onclick="confirmOrder()" disabled>Confirm My Order</button>
+        <button class="neworder-btn" onclick="resetChat()">🔄 Start New Order</button>
+      </div>
+    </div>
+
+    <!-- FEATURE 3 — ORDER STATUS TRACKER (shown after confirmation) -->
+    <div id="tracker-section">
+      <div class="tracker-title">Order Number</div>
+      <div class="tracker-order-num">#<span id="order-number">0000</span></div>
+      <div class="tracker-steps">
+        <div class="tracker-step">
+          <div class="step-icon-wrap" id="step-1">📋</div>
+          <div class="step-info"><div class="step-name">Order Received</div><div class="step-desc">We've got your order</div></div>
+        </div>
+        <div class="tracker-connector" id="conn-1"></div>
+        <div class="tracker-step">
+          <div class="step-icon-wrap" id="step-2">👨‍🍳</div>
+          <div class="step-info"><div class="step-name">Being Prepared</div><div class="step-desc">Chef is cooking now</div></div>
+        </div>
+        <div class="tracker-connector" id="conn-2"></div>
+        <div class="tracker-step">
+          <div class="step-icon-wrap" id="step-3">🔔</div>
+          <div class="step-info"><div class="step-name">Almost Ready</div><div class="step-desc">Just a few more minutes!</div></div>
+        </div>
+        <div class="tracker-connector" id="conn-3"></div>
+        <div class="tracker-step">
+          <div class="step-icon-wrap" id="step-4">🍽️</div>
+          <div class="step-info"><div class="step-name">Ready to Serve!</div><div class="step-desc">Enjoy your meal!</div></div>
+        </div>
+      </div>
+      <div class="tracker-footer">
+        <button class="receipt-btn" id="receiptBtn" onclick="openReceipt()">📄 View Receipt</button>
+        <button class="neworder-btn" onclick="resetChat()">🔄 New Order</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="confetti-container"></div>
+<div id="toast"></div>
+
+<script>
+  marked.setOptions({ breaks:true, gfm:true });
+
+  // ── STATE ──
+  let isStreaming   = false;
+  let isRecording   = false;
+  let recognition   = null;
+  let customerName  = '';
+  let tableNumber   = '';
+  let deliveryAddress = '';
+  let preferences   = [];
+  let currentOrder  = { items:[], total:0 };
+  let confirmedOrder= null;
+  let loyaltyPts    = 0;
+  let trackerActive = false;
+  let trackerTimeouts = [];
+
+  // ── DOM ──
+  const messagesEl = document.getElementById('messages');
+  const inputEl    = document.getElementById('userInput');
+  const sendBtn    = document.getElementById('sendBtn');
+  const micBtn     = document.getElementById('micBtn');
+  const cartEl     = document.getElementById('cart-items');
+  const totalEl    = document.getElementById('cartTotal');
+  const countEl    = document.getElementById('itemCount');
+  const confirmBtn = document.getElementById('confirmBtn');
+
+  inputEl.addEventListener('input', () => { inputEl.style.height='auto'; inputEl.style.height=Math.min(inputEl.scrollHeight,120)+'px'; });
+  inputEl.addEventListener('keydown', e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();} });
+
+  // ══════════════════════════════════════
+  // FEATURE 1 — WELCOME SCREEN
+  // ══════════════════════════════════════
+  // ══════════════════════════════════════
+  // FEATURE 1 — WELCOME SCREEN
+  // ══════════════════════════════════════
+  let orderType = 'dine-in'; // 'dine-in' | 'pickup' | 'delivery'
+
+  function setOrderType(type) {
+    orderType = type;
+    document.querySelectorAll('.order-type-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('ot-'+type.replace('-','')).classList.add('active');
+    // Show/hide contextual fields
+    document.getElementById('table-num').style.display        = type === 'dine-in'  ? 'block' : 'none';
+    document.getElementById('delivery-address').style.display = type === 'delivery' ? 'block' : 'none';
+    // Update button label
+    const labels = { 'dine-in':'Let\'s Order! →', 'pickup':'Place Pickup Order →', 'delivery':'Place Delivery Order →' };
+    document.querySelector('.welcome-btn').textContent = labels[type];
+  }
+
+  document.getElementById('guest-name').addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      if (orderType === 'dine-in')   document.getElementById('table-num').focus();
+      else if (orderType === 'delivery') document.getElementById('delivery-address').focus();
+      else startSession();
+    }
+  });
+  document.getElementById('table-num').addEventListener('keydown',        e => { if(e.key==='Enter') startSession(); });
+  document.getElementById('delivery-address').addEventListener('keydown', e => { if(e.key==='Enter') startSession(); });
+
+  function startSession() {
+    const name    = document.getElementById('guest-name').value.trim();
+    const table   = document.getElementById('table-num').value.trim();
+    const address = document.getElementById('delivery-address').value.trim();
+    const err     = document.getElementById('welcome-error');
+
+    if (!name) { err.style.display='block'; err.textContent='Please enter your name.'; document.getElementById('guest-name').focus(); return; }
+    if (orderType === 'dine-in'  && !table)   { err.style.display='block'; err.textContent='Please enter your table number.'; document.getElementById('table-num').focus(); return; }
+    if (orderType === 'delivery' && !address) { err.style.display='block'; err.textContent='Please enter a delivery address.'; document.getElementById('delivery-address').focus(); return; }
+    err.style.display = 'none';
+
+    customerName  = name;
+    tableNumber   = orderType === 'dine-in' ? table : '';
+    deliveryAddress = orderType === 'delivery' ? address : '';
+
+    // Update header
+    const typeLabels = { 'dine-in':`Table ${table}`, 'pickup':'Pickup Order', 'delivery':'Delivery' };
+    document.getElementById('header-sub').textContent = `{{ restaurant_name }} — ${typeLabels[orderType]}`;
+
+    // Update order panel title
+    const icons = { 'dine-in':'🛒', 'pickup':'🥡', 'delivery':'🚗' };
+    document.querySelector('.order-title').childNodes[0].textContent = `${icons[orderType]} Your Order `;
+
+    const ov = document.getElementById('welcome-overlay');
+    ov.style.opacity = '0';
+    setTimeout(() => { ov.style.display='none'; greet(); }, 500);
+  }
+
+  // ══════════════════════════════════════
+  // FEATURE 2 — DIETARY PREFERENCES
+  // ══════════════════════════════════════
+  function openPrefs()  { document.getElementById('prefs-overlay').style.display='flex'; }
+  function closePrefs() { document.getElementById('prefs-overlay').style.display='none'; }
+  function closePrefsBg(e) { if(e.target===document.getElementById('prefs-overlay')) closePrefs(); }
+
+  function savePrefs() {
+    preferences = Array.from(document.querySelectorAll('#prefs-overlay input:checked')).map(i=>i.value);
+    const badge = document.getElementById('prefs-badge');
+    if (preferences.length > 0) {
+      badge.style.display = 'inline-block';
+      badge.textContent   = `🥗 ${preferences.length} filter${preferences.length>1?'s':''} on`;
+      showToast(`✅ Preferences saved: ${preferences.join(', ')}`, 'info');
+    } else {
+      badge.style.display = 'none';
+    }
+    closePrefs();
+  }
+
+  // ══════════════════════════════════════
+  // FEATURE 4 — LOYALTY POINTS
+  // ══════════════════════════════════════
+  function animateLoyalty(target) {
+    const el = document.getElementById('loyalty-points');
+    const from = loyaltyPts;
+    if (from === target) return;
+    const steps = 25, dur = 600;
+    let i = 0;
+    const t = setInterval(() => {
+      i++;
+      el.textContent = Math.round(from + (target - from) * i / steps);
+      if (i >= steps) {
+        clearInterval(t);
+        loyaltyPts = target;
+        if (loyaltyPts >= 500 && from < 500) showToast('🎁 500 pts — Free Dessert unlocked!', 'reward');
+        else if (loyaltyPts >= 250 && from < 250) showToast('🌟 250 pts — 10% off your next visit!', 'reward');
+        else if (loyaltyPts >= 100 && from < 100) showToast('⭐ 100 pts reached — keep going!', 'reward');
+      }
+    }, dur / steps);
+  }
+
+  // ══════════════════════════════════════
+  // CORE CHAT + STREAMING
+  // ══════════════════════════════════════
+  function escapeHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+  }
+
+  function addMessage(role, text) {
+    const div = document.createElement('div');
+    div.className = `msg ${role}`;
+    div.innerHTML = `<div class="msg-avatar">${role==='bot'?'🤖':'👤'}</div><div class="bubble">${escapeHtml(text)}</div>`;
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return div;
+  }
+
+  function showTyping() {
+    const div = document.createElement('div');
+    div.id='typing'; div.className='msg bot';
+    div.innerHTML=`<div class="msg-avatar">🤖</div><div class="bubble"><div class="typing-dots"><span></span><span></span><span></span></div></div>`;
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  async function streamResponse(userText) {
+    isStreaming = true; sendBtn.disabled = true;
+    let response;
+    try {
+      response = await fetch('/chat', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ message:userText, preferences, customer_name:customerName, table_number:tableNumber, order_type:orderType, delivery_address:deliveryAddress })
+      });
+    } catch {
+      document.getElementById('typing')?.remove();
+      addMessage('bot','⚠️ Connection error. Make sure app.py is running.');
+      isStreaming=false; sendBtn.disabled=false; return;
+    }
+
+    document.getElementById('typing')?.remove();
+    const botDiv = document.createElement('div');
+    botDiv.className='msg bot';
+    botDiv.innerHTML=`<div class="msg-avatar">🤖</div><div class="bubble streaming"></div>`;
+    messagesEl.appendChild(botDiv);
+    const bubble = botDiv.querySelector('.bubble');
+
+    const reader=response.body.getReader(), decoder=new TextDecoder();
+    let buf='', fullText='';
+    while(true) {
+      const{done,value}=await reader.read(); if(done)break;
+      buf+=decoder.decode(value,{stream:true});
+      const lines=buf.split('\n'); buf=lines.pop();
+      for(const line of lines){
+        if(!line.startsWith('data: '))continue;
+        let data; try{data=JSON.parse(line.slice(6));}catch{continue;}
+        if(data.text){ fullText+=data.text; bubble.innerHTML=escapeHtml(fullText); messagesEl.scrollTop=messagesEl.scrollHeight; }
+        if(data.done){
+          bubble.classList.remove('streaming');
+          const om=fullText.match(/\[ORDER\]:(\{[\s\S]*?\})\s*$/);
+          if(om){ try{updateCart(JSON.parse(om[1]));fullText=fullText.replace(/\s*\[ORDER\]:[\s\S]*$/,'').trim();}catch{} }
+          bubble.innerHTML=marked.parse(fullText);
+          const low=fullText.toLowerCase();
+          if(!trackerActive && (low.includes('order is confirmed') || low.includes('order confirmed') || low.includes('order has been placed'))){
+            trackerActive = true;
+            confirmedOrder={...currentOrder};
+            celebrate();
+            setTimeout(()=>startTracker(), 800);
+          }
+        }
+        if(data.error){ bubble.classList.remove('streaming'); bubble.innerHTML='⚠️ '+escapeHtml(data.error); }
+      }
+    }
+    isStreaming=false; sendBtn.disabled=false; inputEl.focus();
+  }
+
+  async function sendMessage() {
+    const text=inputEl.value.trim(); if(!text||isStreaming)return;
+    addMessage('user',text); inputEl.value=''; inputEl.style.height='auto';
+    showTyping(); await streamResponse(text);
+  }
+
+  function sendQuick(msg){ if(isStreaming)return; inputEl.value=msg; sendMessage(); }
+
+  // ── CART ──
+  function updateCart(od) {
+    currentOrder=od;
+    const qty=od.items.reduce((s,i)=>s+i.qty,0);
+    countEl.textContent=qty;
+    if(!od.items||od.items.length===0){
+      cartEl.innerHTML=`<div class="cart-empty"><span class="cart-empty-icon">🍽️</span><span>Chat with Bella to start your order</span></div>`;
+      totalEl.textContent='$0.00'; confirmBtn.disabled=true; return;
+    }
+    confirmBtn.disabled=false;
+    cartEl.innerHTML=od.items.map(i=>`
+      <div class="cart-item">
+        <div class="cart-item-name">${escapeHtml(i.name)}</div>
+        <span class="cart-item-qty">×${i.qty}</span>
+        <span class="cart-item-price">$${(i.price*i.qty).toFixed(2)}</span>
+      </div>`).join('');
+    totalEl.textContent='$'+od.total.toFixed(2);
+    animateLoyalty(Math.round(od.total*10));
+  }
+
+  function confirmOrder(){ sendQuick('Please confirm my order and give me a full itemized summary with the total.'); }
+
+  // ══════════════════════════════════════
+  // FEATURE 3 — ORDER STATUS TRACKER
+  // ══════════════════════════════════════
+  function startTracker() {
+    // Clear any leftover timeouts from a previous run
+    trackerTimeouts.forEach(t => clearTimeout(t));
+    trackerTimeouts = [];
+
+    document.getElementById('cart-section').style.display='none';
+    document.getElementById('tracker-section').style.display='flex';
+    document.getElementById('order-number').textContent=String(Math.floor(1000+Math.random()*9000));
+
+    const steps=[
+      {step:'step-1', conn:'conn-1', delay:0,       msg:null},
+      {step:'step-2', conn:'conn-2', delay:60000,   msg:'👨‍🍳 Chef has started preparing your order!'},
+      {step:'step-3', conn:'conn-3', delay:150000,  msg:'🔔 Your order is almost ready!'},
+      {step:'step-4', conn:null,     delay:240000,  msg:'🍽️ Your food is ready — bon appétit!'},
+    ];
+
+    steps.forEach(({step, conn, delay, msg}) => {
+      const t = setTimeout(() => {
+        document.getElementById(step).classList.add('active');
+        if(conn) document.getElementById(conn).classList.add('done');
+        if(msg) showToast(msg, 'success');
+        if(step==='step-4') document.getElementById('receiptBtn').style.display='block';
+      }, delay);
+      trackerTimeouts.push(t);
+    });
+  }
+
+  // ══════════════════════════════════════
+  // FEATURE 5 — RECEIPT MODAL
+  // ══════════════════════════════════════
+  function openReceipt() {
+    const od   = confirmedOrder||currentOrder;
+    const now  = new Date();
+    const date = now.toLocaleDateString('en-US',{weekday:'short',year:'numeric',month:'short',day:'numeric'});
+    const time = now.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'});
+    const tax  = od.total*0.08;
+    const grand= od.total+tax;
+    const pts  = Math.round(od.total*10);
+    const orderTypeLabels = { 'dine-in':`Dine In — Table ${tableNumber}`, 'pickup':'Pickup', 'delivery':`Delivery to ${deliveryAddress}` };
+    const items = (od.items||[]).map(i=>`
+      <div class="receipt-row"><span>${escapeHtml(i.name)} × ${i.qty}</span><span>$${(i.price*i.qty).toFixed(2)}</span></div>`).join('');
+    document.getElementById('receipt-content').innerHTML=`
+      <div class="receipt-logo">🤌</div>
+      <div class="receipt-restaurant">{{ restaurant_name }}</div>
+      <div class="receipt-sub">Food AI — Powered by Claude</div>
+      <hr class="receipt-divider">
+      <div class="receipt-meta-row"><span>Guest</span><span>${escapeHtml(customerName)}</span></div>
+      <div class="receipt-meta-row"><span>Order</span><span>${orderTypeLabels[orderType]}</span></div>
+      <div class="receipt-meta-row"><span>Date</span><span>${date}</span></div>
+      <div class="receipt-meta-row"><span>Time</span><span>${time}</span></div>
+      <hr class="receipt-divider">
+      <div class="receipt-items">${items}</div>
+      <hr class="receipt-divider">
+      <div class="receipt-row"><span>Subtotal</span><span>$${od.total.toFixed(2)}</span></div>
+      <div class="receipt-row"><span>Tax (8%)</span><span>$${tax.toFixed(2)}</span></div>
+      <div class="receipt-row receipt-total-row"><span>Total</span><span>$${grand.toFixed(2)}</span></div>
+      <hr class="receipt-divider">
+      <div class="receipt-loyalty">⭐ ${pts} loyalty points earned</div>
+      <div class="receipt-thankyou">Thank you for dining with us!<br>We hope to see you again soon 🍕</div>
+      <div class="receipt-btns">
+        <button class="receipt-print-btn" onclick="window.print()">🖨️ Print</button>
+        <button class="receipt-close-btn" onclick="closeReceipt()">Close</button>
+      </div>`;
+    document.getElementById('receipt-overlay').style.display='flex';
+  }
+
+  function closeReceipt()    { document.getElementById('receipt-overlay').style.display='none'; }
+  function closeReceiptBg(e) { if(e.target===document.getElementById('receipt-overlay'))closeReceipt(); }
+
+  // ── VOICE ──
+  function toggleVoice(){
+    if(!('webkitSpeechRecognition' in window||'SpeechRecognition' in window)){alert('Voice input requires Google Chrome!');return;}
+    if(isRecording){recognition?.stop();return;}
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    recognition=new SR(); recognition.lang='en-US'; recognition.interimResults=false;
+    recognition.onstart =()=>{ isRecording=true;  micBtn.classList.add('recording'); };
+    recognition.onend   =()=>{ isRecording=false; micBtn.classList.remove('recording'); };
+    recognition.onerror =()=>{ isRecording=false; micBtn.classList.remove('recording'); };
+    recognition.onresult=e=>{ inputEl.value=e.results[0][0].transcript; inputEl.dispatchEvent(new Event('input')); setTimeout(()=>sendMessage(),300); };
+    recognition.start();
+  }
+
+  // ── CONFETTI ──
+  function celebrate(){
+    const cols=['#f97316','#fbbf24','#4ade80','#60a5fa','#c084fc','#f472b6','#fb923c','#a3e635'];
+    const c=document.getElementById('confetti-container'); c.innerHTML='';
+    for(let i=0;i<90;i++){
+      const p=document.createElement('div'); p.className='confetti-piece';
+      const sz=6+Math.random()*8;
+      p.style.cssText=`left:${Math.random()*100}%;width:${sz}px;height:${sz}px;background:${cols[Math.floor(Math.random()*cols.length)]};border-radius:${Math.random()>.5?'50%':'2px'};animation-duration:${2+Math.random()*2}s;animation-delay:${Math.random()}s;`;
+      c.appendChild(p);
+    }
+    setTimeout(()=>c.innerHTML='',5000);
+    showToast('🎉 Order confirmed! Enjoy your meal!','success');
+  }
+
+  // ── TOAST ──
+  function showToast(msg, type='') {
+    const t=document.getElementById('toast');
+    t.textContent=msg; t.className=type?`show ${type}`:'show';
+    setTimeout(()=>t.className='',3800);
+  }
+
+  // ── RESET ──
+  async function resetChat(){
+    await fetch('/reset',{method:'POST'});
+    messagesEl.innerHTML='';
+    updateCart({items:[],total:0});
+    loyaltyPts=0; document.getElementById('loyalty-points').textContent='0';
+    confirmedOrder=null;
+    trackerActive=false;
+    trackerTimeouts.forEach(t => clearTimeout(t));
+    trackerTimeouts=[];
+    document.getElementById('cart-section').style.display='flex';
+    document.getElementById('tracker-section').style.display='none';
+    document.getElementById('receiptBtn').style.display='none';
+    document.querySelectorAll('.step-icon-wrap').forEach(s=>s.classList.remove('active'));
+    document.querySelectorAll('.tracker-connector').forEach(c=>c.classList.remove('done'));
+    greet();
+  }
+
+  // ── GREET ──
+  async function greet(){ isStreaming=true; sendBtn.disabled=true; showTyping(); await streamResponse('Hello!'); }
+
+  // ── MENU CARD ──
+  const MENU_DATA={
+    "🥗 Starters":[
+      {name:"Garlic Bread",price:4.99,desc:"Toasted bread with garlic butter"},
+      {name:"Bruschetta",price:6.99,desc:"Toasted bread with tomatoes, basil, and olive oil"},
+      {name:"Soup of the Day",price:5.99,desc:"Ask your server for today's selection"},
+      {name:"Caesar Salad",price:8.99,desc:"Romaine lettuce, croutons, parmesan, Caesar dressing"},
+    ],
+    "🍕 Mains":[
+      {name:"Margherita Pizza",price:13.99,desc:"Tomato sauce, mozzarella, fresh basil"},
+      {name:"Pepperoni Pizza",price:15.99,desc:"Tomato sauce, mozzarella, pepperoni"},
+      {name:"Spaghetti Bolognese",price:14.99,desc:"Spaghetti with rich meat sauce"},
+      {name:"Penne Arrabbiata",price:12.99,desc:"Penne in spicy tomato sauce",veg:true},
+      {name:"Chicken Parmesan",price:17.99,desc:"Breaded chicken, marinara sauce, melted cheese"},
+      {name:"Grilled Salmon",price:19.99,desc:"With lemon butter sauce and seasonal vegetables"},
+      {name:"Mushroom Risotto",price:13.99,desc:"Creamy risotto with mixed mushrooms",veg:true},
+    ],
+    "🍮 Desserts":[
+      {name:"Tiramisu",price:6.99,desc:"Classic Italian dessert with espresso and mascarpone"},
+      {name:"Panna Cotta",price:5.99,desc:"Creamy Italian dessert with berry coulis"},
+      {name:"Chocolate Lava Cake",price:7.99,desc:"Warm chocolate cake with a molten center"},
+      {name:"Gelato (2 scoops)",price:4.99,desc:"Choice of vanilla, chocolate, or strawberry"},
+    ],
+    "🥤 Drinks":[
+      {name:"Soft Drink",price:2.99,desc:"Coke, Diet Coke, Sprite, or Fanta"},
+      {name:"Fresh Orange Juice",price:3.99,desc:"Freshly squeezed"},
+      {name:"Sparkling Water",price:2.49,desc:"500ml bottle"},
+      {name:"Still Water",price:1.99,desc:"500ml bottle"},
+      {name:"House Wine (glass)",price:6.99,desc:"Red or white"},
+      {name:"Italian Beer",price:4.99,desc:"Peroni or Moretti"},
+      {name:"Espresso",price:2.49,desc:"Single shot"},
+      {name:"Cappuccino",price:3.49,desc:"Espresso with steamed milk"},
+    ],
+  };
+
+  function showMenu(){
+    if(isStreaming)return;
+    let html='';
+    for(const[section,items]of Object.entries(MENU_DATA)){
+      html+=`<div class="menu-section"><div class="menu-section-title">${section}</div>
+      ${items.map(i=>`<div class="menu-item">
+        <div class="menu-item-left">
+          <div class="menu-item-name-row"><span class="menu-item-name">${i.name}</span>${i.veg?'<span class="veg-badge">🌿 veg</span>':''}</div>
+          <div class="menu-item-desc">${i.desc}</div>
+        </div>
+        <div class="menu-item-price">$${i.price.toFixed(2)}</div>
+      </div>`).join('')}</div>`;
+    }
+    const div=document.createElement('div'); div.className='msg bot';
+    div.innerHTML=`<div class="msg-avatar">🤖</div><div class="bubble"><div class="menu-card"><div class="menu-card-title">🤌 {{ restaurant_name }} — Full Menu</div>${html}<div class="menu-order-hint">Tell me what you'd like and I'll add it to your order!</div></div></div>`;
+    messagesEl.appendChild(div); messagesEl.scrollTop=messagesEl.scrollHeight;
+  }
+</script>
+</body>
+</html>
